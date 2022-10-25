@@ -59,6 +59,7 @@ fig
 # hello franziska
 
 
+
 #using scatter sd whatever that means 
 data("iris")
 
@@ -122,3 +123,7 @@ for (i in seq(4)){
 }
 
 fig
+
+
+# hello Emilie
+# hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
