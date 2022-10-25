@@ -78,14 +78,14 @@ tot_explained_variance_ratio <- 100 * sum(tot_explained_variance_ratio)
 
 tit = 'Total Explained Variance = 99.48'
 
-fig <- plot_ly(components, x = ~PC1, y = ~PC2, z = ~PC3, color = ~iris$Species, colors = c('#636EFA','#EF553B','#00CC96') ) %>%
+fig <- plot_ly(components, x = ~PC1, y = ~PC2, z = ~PC3, color = ~iris$Species, colors = c('#8FB7F3','#0D4BA7','#D4E5FB') ) %>%
   add_markers(size = 12)
 
 
 fig <- fig %>%
   layout(
     title = tit,
-    scene = list(bgcolor = "#e5ecf6")
+    scene = list(bgcolor = "#F6FAFF")
   )
 
 fig
@@ -108,7 +108,7 @@ for (i in seq(explained_variance)){
 
 features = c('sepal_length', 'sepal_width', 'petal_length', 'petal_width')
 
-fig <- plot_ly(components, x = ~PC1, y = ~PC2, color = ~iris$Species, colors = c('#636EFA','#EF553B','#00CC96'), type = 'scatter', mode = 'markers') %>%
+fig <- plot_ly(components, x = ~PC1, y = ~PC2, color = ~iris$Species, colors = c('#8FB7F3','#0D4BA7','#D6E4F9'), type = 'scatter', mode = 'markers') %>%
   layout(
     legend=list(title=list(text='color')),
     plot_bgcolor = "#e5ecf6",
