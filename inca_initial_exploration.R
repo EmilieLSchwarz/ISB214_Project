@@ -54,3 +54,53 @@ group4_fun <- function(data){
   return(data$grp4)
 }
 inca2$grp4 <- group4_fun(inca2)
+
+#making group 5
+
+group5_fun <- function(data){
+  for(i in 1:nrow(data)){
+    data[i,"grp5"]= (data$food_gp_13s[i]+data$food_gp_14s[i]+data$food_gp_15s[i]+data$food_gp_16s[i])/(4)
+  }
+  return(data$grp5)
+}
+inca2$grp5 <- group5_fun(inca2)
+
+#group 6
+group6_fun <- function(data){
+  for(i in 1:nrow(data)){
+    data[i,"grp6"]= (data$food_gp_23s[i]+data$food_gp_24s[i]+data$food_gp_25s[i]+data$food_gp_26s[i]+data$food_gp_27s[i]+data$food_gp_38s[i])/(6)
+  }
+  return(data$grp6)
+}
+inca2$grp6 <- group6_fun(inca2)
+
+#group 7
+group7_fun <- function(data){
+  for(i in 1:nrow(data)){
+    data[i,"grp7"]= (data$food_gp_31s[i]+data$food_gp_32s[i]+data$food_gp_34s[i]+data$food_gp_35s[i])/(4)
+  }
+  return(data$grp7)
+}
+inca2$grp7 <- group7_fun(inca2)
+
+#group 8
+group8_fun <- function(data){
+  for(i in 1:nrow(data)){
+    data[i,"grp8"]= data$food_gp_33s[i]
+    }
+  return(data$grp8)
+}
+inca2$grp8 <- group8_fun(inca2)
+
+# group 9 
+group9_fun <- function(data){
+  for(i in 1:nrow(data)){
+    data[i,"grp9"]= (data$food_gp_36s[i]+data$food_gp_37s[i])/(2)
+  }
+  return(data$grp9)
+}
+inca2$grp9 <- group9_fun(inca2)
+
+
+
+
