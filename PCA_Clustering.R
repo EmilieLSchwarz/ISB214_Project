@@ -1,6 +1,10 @@
+#ISB 214 PCA Project 
+# Ray Van-Huizen, Franziska Bright, Emilie Schwarz
+
+#loading packages necessary
 library(pacman)
 p_load(dplyr, ggplot2, tidyverse, MASS, tidyr, visdat, DataExplorer, expss, gtsummary, knitr,ggpubr,broom.helpers,broom, epiDisplay, tidymodels, yardstick,
-     corrplot, FactoMineR, factoextra, foreign, ggfortify)
+     corrplot, FactoMineR, factoextra, foreign, ggfortify, Rcolorbrewer)
 #importing the data 
 inca2 <- read.csv("inca2_survey.csv")
 
@@ -49,7 +53,11 @@ inca2 <- inca2 %>% rename(bread = food_gp_1s,
                           condiment_sauce= food_gp_43s
 )
 
+#identifying the qualitative vars and factoring them
+names <- c(1:8, 51:53)
+inca2[,names] <- lapply(inca2[,names] , factor)
 
+#Giving the variables labels 
 inca2 <- inca2 %>% apply_labels(income= "Income Category", 
                                 diet = "Following restrictive diet", 
                                 disease= "Chronic disease status", 
@@ -59,21 +67,24 @@ inca2 <- inca2 %>% apply_labels(income= "Income Category",
                                 income = "Income category", 
                                 ipaqnx = "Exercise", 
                                 bmiclass= "BMI category", 
-                                education= "Education level")
+                                education= "Education level", 
+                                supplements = "Dietary supplement intake")
 
-#identifying the qualitative vars and factoring them
-names <- c(1:8, 51:53)
-inca2[,names] <- lapply(inca2[,names] , factor)
-#selecting the quantiative variables
+
+#selecting the quantitative variables
 names(inca2)
 quantvars <- inca2[, 9:50]
-hemo.clus <- hemo[,c("ast","agediag", "alt", "ggt", "fer", "frt", "chfage", "bmi", "cs")]
+quantvar_names <- names(inca2[, 9:50])
+inca.clus <- inca2[,quantvar_names]
 
+
+#dropping missing data because there aren't many and we don't want it to influence our analysis
+inca2 <- drop_na(inca2)
 
 #descriptive table 
 inca2 %>%
   select(diet, disease, age_categories, income, ipaqnx, education) %>%
-  tbl_summary(by= education)%>%
+  tbl_summary(by= education, missing = "no")%>%
   italicize_levels()  %>% 
   modify_caption("Descriptive statistics of participants")
 
@@ -81,12 +92,14 @@ inca2 %>%
 res.pca <- PCA(inca2, scale.unit = T, ncp = 5, quali.sup = c(1:8,51:53),graph =F)
 plot(res.pca)
 
+
 #looking at output 
 res.pca$eig
 res.pca$var
 res.pca$ind$contrib
 
 #visualizing 
+#plots the categories on the dimensions with individuals as invisible 
 plot.PCA(res.pca, axes=c(1, 2), choix="ind", 
          habillage="none", col.ind="black", col.ind.sup="blue", 
          col.quali="magenta", label=c("ind", "ind.sup", "quali"), invisible = c("ind"),
@@ -110,32 +123,131 @@ fviz_eig(res.pca, addlabels = TRUE)
 HCPC(res.pca, nb.clust = -1)
 HCPC(res.pca, nb.clust = 5, consol=T, min=2, max=10, graph=TRUE)
 
+#selecting the quantitative variables
+names(inca2)
+quantvars <- inca2[, 9:50]
+quantvar_names <- names(inca2[, 9:50])
+inca.clus <- inca2[,quantvar_names]
 
 # standardize the data to avoid big values 
-hemo.st <- scale(hemo.clus, center=T, scale=T)
+inca.st <- scale(inca.clus, center=T, scale=T)
 
 #generate a distance matrix on the standardized data 
-hemo.d <- dist(hemo.st)
+inca.d <- dist(inca.st)
 
 #using the distance matrix in a cluster
-hemo.cah <- hclust(hemo.d, method="ward.D2") #you can also choose another method, but ward is most commonly used in PH
-plot(hemo.cah) #plotting the gram 
+inca.cah <- hclust(inca.d, method="ward.D2") #you can also choose another method, but ward is most commonly used in PH
+plot(inca.cah) #plotting the gram 
 
 #cut in two groups based on visualization of graphic 
-class.hemo.cah <- cutree(hemo.cah, k=2)
+class.inca.cah <- cutree(inca.cah, k=2)
 
 #print list of each individual associated to each class 
-print((class.hemo.cah))
+print((class.inca.cah))
 
 #adding it to the original data 
-hemo <- hemo %>% mutate(class.hemo.cah = class.hemo.cah)
+#inca2 <- inca2 %>% mutate(class.inca.cah = class.inca.cah)
 #another way to do the same thing ^
-hemo.cah.data <- cbind.data.frame(hemo, class.hemo.cah)
+inca2.cah.data <- cbind.data.frame(inca2, class.inca.cah)
 
 #create a contingency table to analyse the results of the cluster 
-test <- table(hemo.cah.data$class.hemo.cah, hemo.cah.data$recodcir)
+test <- table(inca2.cah.data$class.inca.cah, inca2.cah.data$education)
 prop.table(test)
-fisher.test(hemo.cah.data$class.hemo.cah, hemo.cah.data$recodcir)
-str(hemo.cah.data)
+fisher.test(inca2.cah.data$class.inca.cah, inca2.cah.data$education)
+str(inca2.cah.data)
+inca2.cah.data$class.inca.cah <- as.factor(inca2.cah.data$class.inca.cah)
+# hierarchical agglomerative clustering on principle components 
+#clustering from results from PCA 
+# use dimensions instead of variables 
+
+#running a PCA- again
+res.pca <- PCA(inca2, scale.unit = T, ncp = 5, quali.sup = c(1:8,51:53),graph =F)
+
+res.pca.hcpc<- HCPC(res.pca, nb.clust = 2, consol = TRUE, min=2, max=10, graph=TRUE) #putting 0 allows you to cut the tree yourself, putting -1 lets R cut the tree where it thinks is best <3
+
+#after visually inspecting the tree & exploring the suggestion provided by R, we decided 2 clusters is the most appropriate for our data 
+
+print(res.pca.hcpc)
+#columns of interest in the numerical outputs: mean in cat
+res.pca.hcpc$desc.var$test.chi2
+res.pca.hcpc$desc.var$category
+
+#describing our two groups of clusters
+inca2.cah.data %>%
+  select(education, class.inca.cah) %>%
+  tbl_summary(by= class.inca.cah, missing = "no")%>%
+  italicize_levels()  %>% 
+  add_p() %>%
+  modify_caption("Descriptive statistics of participants by group")
+
+class1 = inca2.cah.data %>% filter(class.inca.cah==1)
+class2 = inca2.cah.data %>% filter(class.inca.cah==2)
+
+summary(class1)
+summary(class2)
 
 
+fviz_dend(res.pca.hcpc)
+fviz_cluster(res.pca.hcpc)
+
+#print dendogram with faxtoextra
+fviz_dend(res.pca.hcpc,
+          cex = 0.7, # Label size
+          palette = "jco", # Color palette
+          rect = TRUE, rect_fill = TRUE, # Add rectangle around groups
+          rect_border = "jco", # Rectangle color
+          labels_track_height = 0.8 # Augment the room for labels
+)
+
+#to visualize individuals on the principal component map and to color individuals according to the cluster they belong to
+fviz_cluster(res.pca.hcpc,
+             repel = TRUE,            # Avoid label overlapping
+             show.clust.cent = TRUE, # Show cluster centers
+             palette = "Set1",         # Color palette see ?ggpubr::ggpar
+             ggtheme = theme_pubclean(),
+             main = "Factor map"
+)
+
+#k means
+inca.cr <- scale(inca.clus)
+
+#performing k-means with the kmeans function
+#center = number of groups a priori
+#nstart =  random set to chose, here we try 30 times the procedure and keep with the best value
+incakmeans <- kmeans(inca.cr , centers = 2, nstart =30)
+
+# display the numerical results
+print(incakmeans)
+
+#classe pour chaque individu
+incakmeans$cluster 
+
+#iTotal within-cluster sum of squares (inertia)
+incakmeans$tot.withinss
+
+#he between-cluster sum of squares (inertia)
+incakmeans$betweenss
+
+#attach the results of the selected cluster to each individual of the initial database 
+inca.kmeans.data <- cbind.data.frame(inca2, incakmeans$cluster)
+#choose the best number of cluster (factoextra) with different methods
+#method = the method to be used for estimating the optimal number of clusters. 
+#Possible values for method are "silhouette" (for average silhouette width), "wss" (for total within sum of square) and "gap_stat" (for gap statistics).
+fviz_nbclust(inca.cr, kmeans, method = "gap_stat")
+
+fviz_nbclust(inca.cr, kmeans, method = "wss") +
+  geom_vline(xintercept = 2, linetype = 2)
+
+fviz_nbclust(inca.cr, FUN= hcut, method = "silhouette") +
+  geom_vline(xintercept = 2, linetype = 2)
+
+# this is only for 2 clusters, you gotta do it with all the interesting clusters to look at 
+#print the result of kmeans of the PCA graph using factoextra
+fviz_cluster(incakmeans, data = inca.clus,
+             ellipse.type = "convex",
+             palette = "Set2",
+             ggtheme = theme_minimal())
+
+#logistic regression 
+reg <- glm(class.inca.cah~education, data= inca2.cah.data, family="binomial")
+logistic.display(reg)
