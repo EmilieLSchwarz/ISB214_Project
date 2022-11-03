@@ -69,7 +69,8 @@ inca2 <- inca2 %>% apply_labels(income= "Income Category",
                                 ipaqnx = "Exercise", 
                                 bmiclass= "BMI category", 
                                 education= "Education level", 
-                                supplements = "Dietary supplement intake")
+                                supplements = "Dietary supplement intake"
+)
 
 
 ##################################
@@ -96,8 +97,7 @@ quantvars <- inca2[, 9:50]
 summary(inca2[9:50])
 hists <- apply(inca2[, 9:50], 2, function(x) {hist(x)}) # Doesn't label histograms
 
-# Drop missing data because there aren't many and we don't want it to influence our analysis
-inca2 <- drop_na(inca2)
+#### DROP OUTLIER INDIVIDUAL - condiment_sauce > 70 
 
 #####################################################################################################################
 # Table 1: Descriptive table 
@@ -118,23 +118,20 @@ res.pca <- PCA(inca2,
                  scale.unit = T, #ncp = 5,
                  quali.sup = c(1:8, 51:53),
                  graph = F )
-summary(inca2.pca, nbelements = Inf)
+summary(res.pca, nbelements = Inf)
 
 # Scree plot
-fviz_eig(res.pca, addlabels = TRUE)
+fviz_eig(res.pca, addlabels = TRUE, ncp = 40)
 
 # Number of dimensions to interpret
 estim_ncp(inca2[,9:50])
 # Utilize 3 dimensions in interpretation
 
 # Eigenvalues
-barplot(res.pca$eig[,1],main="eigenvalues",names.arg=1:nrow(inca2.pca$eig))
-res$eig
+barplot(res.pca$eig[,1],main="eigenvalues",names.arg=1:nrow(res.pca$eig))
+res.pca$eig
 # 10% of the variance is explained by the first dimension
-
-
-res.pca$var
-res.pca$ind$contrib
+# The first 28 variables explain 80.46% of the variance
 
 
 # Plot of individuals
@@ -156,23 +153,22 @@ fviz_pca_ind(res.pca,
 
 
 # Circle plot of variables
-fviz_pca_var(inca2.pca, col.var = "contrib",
+fviz_pca_var(res.pca, col.var = "contrib",
              gradient.cols = c("40e0e0", "#ff8c00", "#ff0080"),
              repel = TRUE,
-             title = "Correlation circle by contributions")
+             title = "Correlation circle by contributions"
+)
 
-inca2.pca$var # Looking at first 3 dimensions
+res.pca$var # Looking at first 3 dimensions
 
 
 # VAR Cos2
-var_cos2 <- round(inca2.pca$var$cos2, 2)
-# Sum of goodness of representation in 3 dimensions
-var_cos2_fit <- rowSums(var_cos2[,1:3])
-# Which individuals have representation of at least 0.25
-var_good_fit <- which(var_cos2_fit > 0.25) 
+var_cos2 <- round(res.pca$var$cos2, 2) # Sum of goodness of representation in 3 dimensions
+var_cos2_fit <- rowSums(var_cos2[,1:3]) # Add first 3 dimensions (since they're orthoganal)
+var_good_fit <- which(var_cos2_fit > 0.25) # Which variables have representation of at least 0.25
 var_cos2_fit[var_good_fit]
-length(var_good_fit) # How many
-#  Only 12 variables using first 3 dimensions
+length(var_good_fit) # How many variables have representation of at least 0.25
+# Only 12 variables using first 3 dimensions
 
 
 dimdesc(res.pca)
@@ -190,17 +186,15 @@ dimdesc(res.pca)
 
 # Run PCA
 res.pca <- PCA(inca2,
-                 scale.unit = T, ncp = 3,
+                 scale.unit = T, ncp = 28, # Retain 28 dimensions from PCA, which explains >80% of variances
                  quali.sup = c(1:8, 51:53),
-                 graph = F )
+                 graph = F
+)
+
+
 
 # Perform a HAC with the function HCPC On PCA results
-
-res.pca.hcpc<-HCPC(res.pca ,nb.clust=0,consol=T,min=2,max=10,graph=T) # 2 clusters
-#produce3 graphics  (dendogram, gain inertia, graphic 3 D)
-#consolidation (consol = F/T)  consolidation by kmeans 
-#if nb.clust = -1 tree cut automatically following the criterion of inertia gain and if 0 -> the user choose itself
-#min and max are the minimum and maximum number of clusters to perform
+res.pca.hcpc<-HCPC(res.pca ,nb.clust=-1,consol=T,min=2,max=10,graph=T) # 2 clusters
 
 # Print the numerical results to describe the clusters by the variables
 # columns of interest in the numerical outputs: "Mean in category", "Overall Mean","p.value"
@@ -235,13 +229,14 @@ fviz_cluster(res.pca.hcpc,
 clust.data <- res.pca.hcpc$data.clust
 
 
-# Describing our two cluster
+# Describing our clusters
 clust.data %>%
   select(education, clust) %>%
   tbl_summary(by= clust, missing = "no") %>%
   italicize_levels()  %>% 
   add_p() %>%
-  modify_caption("Descriptive statistics of participants by group")
+  modify_caption("Descriptive statistics of participants by group"
+)
 
 class1 = clust.data %>% filter(clust==1)
 class2 = clust.data %>% filter(clust==2)
