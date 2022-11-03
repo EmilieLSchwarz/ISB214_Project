@@ -1,14 +1,19 @@
-#ISB 214 PCA Project 
+# ISB 214 PCA Project 
 # Ray Van-Huizen, Franziska Bright, Emilie Schwarz
 
-#loading packages necessary
+##############################
+####   R and Data setup   ####
+##############################
+
+# Load necessary packages 
 library(pacman)
 p_load(dplyr, ggplot2, tidyverse, MASS, tidyr, visdat, DataExplorer, expss, gtsummary, knitr,ggpubr,broom.helpers,broom, epiDisplay, tidymodels, yardstick,
      corrplot, FactoMineR, factoextra, foreign, ggfortify, Rcolorbrewer)
-#importing the data 
+
+# Import the data 
 inca2 <- read.csv("inca2_survey.csv")
 
-#renaming the variables 
+# Rename the variables 
 inca2 <- inca2 %>% rename(bread = food_gp_1s, 
                           cereal = food_gp_2s, 
                           pasta= food_gp_3s,
@@ -53,11 +58,7 @@ inca2 <- inca2 %>% rename(bread = food_gp_1s,
                           condiment_sauce= food_gp_43s
 )
 
-#identifying the qualitative vars and factoring them
-names <- c(1:8, 51:53)
-inca2[,names] <- lapply(inca2[,names] , factor)
-
-#Giving the variables labels 
+# Give the variables labels 
 inca2 <- inca2 %>% apply_labels(income= "Income Category", 
                                 diet = "Following restrictive diet", 
                                 disease= "Chronic disease status", 
@@ -71,44 +72,82 @@ inca2 <- inca2 %>% apply_labels(income= "Income Category",
                                 supplements = "Dietary supplement intake")
 
 
-#selecting the quantitative variables
-names(inca2)
+##################################
+#### Format and Describe Data ####
+##################################
+
+# Identify and factor the qualitative vars 
+names <- c(1:8, 51:53)
+inca2[,names] <- lapply(inca2[,names] , factor)
+
+# Explore missing
+plot_intro(inca2) 
+plot_missing(inca2)
+# Remove missing
+inca2 <- inca2 %>% drop_na()
+
+# Categorical variables to test
+var2test<- c("diet", "disease", "season", "smoking_status", "age_categories", "income", "ipaqnx", "bmiclass")
+tables_cat <- apply(inca2[, var2test], 2, function(x) {round(prop.table(table(x))*100, 2)})
+# Extreme outlier in condiment_sauce = 77
+
+# Quantitative variables to test
 quantvars <- inca2[, 9:50]
-quantvar_names <- names(inca2[, 9:50])
-inca.clus <- inca2[,quantvar_names]
+summary(inca2[9:50])
+hists <- apply(inca2[, 9:50], 2, function(x) {hist(x)}) # Doesn't label histograms
 
-
-#dropping missing data because there aren't many and we don't want it to influence our analysis
+# Drop missing data because there aren't many and we don't want it to influence our analysis
 inca2 <- drop_na(inca2)
 
-#descriptive table 
+#####################################################################################################################
+# Table 1: Descriptive table 
 inca2 %>%
   select(diet, disease, age_categories, income, ipaqnx, education) %>%
   tbl_summary(by= education, missing = "no")%>%
   italicize_levels()  %>% 
   modify_caption("Descriptive statistics of participants")
-
-#running a PCA
-res.pca <- PCA(inca2, scale.unit = T, ncp = 5, quali.sup = c(1:8,51:53),graph =F)
-plot(res.pca)
+#####################################################################################################################
 
 
-#looking at output 
-res.pca$eig
+##############################
+####       PCA            ####
+##############################
+
+# Run a PCA
+res.pca <- PCA(inca2,
+                 scale.unit = T, #ncp = 5,
+                 quali.sup = c(1:8, 51:53),
+                 graph = F )
+summary(inca2.pca, nbelements = Inf)
+
+# Scree plot
+fviz_eig(res.pca, addlabels = TRUE)
+
+# Number of dimensions to interpret
+estim_ncp(inca2[,9:50])
+# Utilize 3 dimensions in interpretation
+
+# Eigenvalues
+barplot(res.pca$eig[,1],main="eigenvalues",names.arg=1:nrow(inca2.pca$eig))
+res$eig
+# 10% of the variance is explained by the first dimension
+
+
 res.pca$var
 res.pca$ind$contrib
 
-#visualizing 
-#plots the categories on the dimensions with individuals as invisible 
+
+# Plot of individuals
 plot.PCA(res.pca, axes=c(1, 2), choix="ind", 
          habillage="none", col.ind="black", col.ind.sup="blue", 
-         col.quali="magenta", label=c("ind", "ind.sup", "quali"), invisible = c("ind"),
-         new.plot=TRUE)
+         col.quali="magenta", label=c("ind", "ind.sup", "quali"), invisible = c("ind"), # Plots the categories on the dimensions with individuals as invisible
+         new.plot=TRUE
+)
 
-
+# Plot of individuals by educational attainment group
 fviz_pca_ind(res.pca,
-             geom.ind = "point", #point not number of individuals 
-             col.ind = inca2$education, # colorier selon diag cirrhose
+             geom.ind = "point", # Point not number of individuals 
+             col.ind = inca2$education, 
              palette = c("#00AFBB", "#E7B800", "#E84301"),
              legend.title = "Education",
              addEllipses = F, # Concentration ellipses
@@ -116,81 +155,64 @@ fviz_pca_ind(res.pca,
 )
 
 
-fviz_eig(res.pca, addlabels = TRUE)
+# Circle plot of variables
+fviz_pca_var(inca2.pca, col.var = "contrib",
+             gradient.cols = c("40e0e0", "#ff8c00", "#ff0080"),
+             repel = TRUE,
+             title = "Correlation circle by contributions")
+
+inca2.pca$var # Looking at first 3 dimensions
 
 
-#looking at the HCPC
-HCPC(res.pca, nb.clust = -1)
-HCPC(res.pca, nb.clust = 5, consol=T, min=2, max=10, graph=TRUE)
+# VAR Cos2
+var_cos2 <- round(inca2.pca$var$cos2, 2)
+# Sum of goodness of representation in 3 dimensions
+var_cos2_fit <- rowSums(var_cos2[,1:3])
+# Which individuals have representation of at least 0.25
+var_good_fit <- which(var_cos2_fit > 0.25) 
+var_cos2_fit[var_good_fit]
+length(var_good_fit) # How many
+#  Only 12 variables using first 3 dimensions
 
-#selecting the quantitative variables
-names(inca2)
-quantvars <- inca2[, 9:50]
-quantvar_names <- names(inca2[, 9:50])
-inca.clus <- inca2[,quantvar_names]
 
-# standardize the data to avoid big values 
-inca.st <- scale(inca.clus, center=T, scale=T)
+dimdesc(res.pca)
+# Veggetable, bread, condiment_sauce, fruit, cheese correlated with first dimension, 
+# Sandwhich negatively correlated with first dimension
+# Non-alc, biscuits, croissant, pizza, pastries_cake, chocolate, cream_desserts, sandwich, sugars etc. correlated with second dimension
+# Meats, coffee, alcohol negatively correlated with third dimension
 
-#generate a distance matrix on the standardized data 
-inca.d <- dist(inca.st)
 
-#using the distance matrix in a cluster
-inca.cah <- hclust(inca.d, method="ward.D2") #you can also choose another method, but ward is most commonly used in PH
-plot(inca.cah) #plotting the gram 
+##############################
+####     Clustering       ####
+##############################
 
-#cut in two groups based on visualization of graphic 
-class.inca.cah <- cutree(inca.cah, k=2)
+## HAC on  principal components (PCA)
 
-#print list of each individual associated to each class 
-print((class.inca.cah))
+# Run PCA
+res.pca <- PCA(inca2,
+                 scale.unit = T, ncp = 3,
+                 quali.sup = c(1:8, 51:53),
+                 graph = F )
 
-#adding it to the original data 
-#inca2 <- inca2 %>% mutate(class.inca.cah = class.inca.cah)
-#another way to do the same thing ^
-inca2.cah.data <- cbind.data.frame(inca2, class.inca.cah)
+# Perform a HAC with the function HCPC On PCA results
 
-#create a contingency table to analyse the results of the cluster 
-test <- table(inca2.cah.data$class.inca.cah, inca2.cah.data$education)
-prop.table(test)
-fisher.test(inca2.cah.data$class.inca.cah, inca2.cah.data$education)
-str(inca2.cah.data)
-inca2.cah.data$class.inca.cah <- as.factor(inca2.cah.data$class.inca.cah)
-# hierarchical agglomerative clustering on principle components 
-#clustering from results from PCA 
-# use dimensions instead of variables 
+res.pca.hcpc<-HCPC(res.pca ,nb.clust=0,consol=T,min=2,max=10,graph=T) # 2 clusters
+#produce3 graphics  (dendogram, gain inertia, graphic 3 D)
+#consolidation (consol = F/T)  consolidation by kmeans 
+#if nb.clust = -1 tree cut automatically following the criterion of inertia gain and if 0 -> the user choose itself
+#min and max are the minimum and maximum number of clusters to perform
 
-#running a PCA- again
-res.pca <- PCA(inca2, scale.unit = T, ncp = 5, quali.sup = c(1:8,51:53),graph =F)
-
-res.pca.hcpc<- HCPC(res.pca, nb.clust = 2, consol = TRUE, min=2, max=10, graph=TRUE) #putting 0 allows you to cut the tree yourself, putting -1 lets R cut the tree where it thinks is best <3
-
-#after visually inspecting the tree & exploring the suggestion provided by R, we decided 2 clusters is the most appropriate for our data 
-
+# Print the numerical results to describe the clusters by the variables
+# columns of interest in the numerical outputs: "Mean in category", "Overall Mean","p.value"
 print(res.pca.hcpc)
-#columns of interest in the numerical outputs: mean in cat
-res.pca.hcpc$desc.var$test.chi2
-res.pca.hcpc$desc.var$category
+res.pca.hcpc$desc.var$quanti
 
-#describing our two groups of clusters
-inca2.cah.data %>%
-  select(education, class.inca.cah) %>%
-  tbl_summary(by= class.inca.cah, missing = "no")%>%
-  italicize_levels()  %>% 
-  add_p() %>%
-  modify_caption("Descriptive statistics of participants by group")
-
-class1 = inca2.cah.data %>% filter(class.inca.cah==1)
-class2 = inca2.cah.data %>% filter(class.inca.cah==2)
-
-summary(class1)
-summary(class2)
+# Print the numerical resutls to describe the clusters by the most representative individuals (paragons)
+res.pca.hcpc$desc.var$test.chi2 
+res.pca.hcpc$desc.var$category  
 
 
-fviz_dend(res.pca.hcpc)
-fviz_cluster(res.pca.hcpc)
-
-#print dendogram with faxtoextra
+# Print dendogram with faxtoextra
 fviz_dend(res.pca.hcpc,
           cex = 0.7, # Label size
           palette = "jco", # Color palette
@@ -199,55 +221,35 @@ fviz_dend(res.pca.hcpc,
           labels_track_height = 0.8 # Augment the room for labels
 )
 
-#to visualize individuals on the principal component map and to color individuals according to the cluster they belong to
+# Visualize individuals on the principal component map and to color individuals according to the cluster they belong to
 fviz_cluster(res.pca.hcpc,
              repel = TRUE,            # Avoid label overlapping
              show.clust.cent = TRUE, # Show cluster centers
-             palette = "Set1",         # Color palette see ?ggpubr::ggpar
-             ggtheme = theme_pubclean(),
+             palette = "jco",         # Color palette see ?ggpubr::ggpar
+             ggtheme = theme_minimal(),
              main = "Factor map"
 )
 
-#k means
-inca.cr <- scale(inca.clus)
 
-#performing k-means with the kmeans function
-#center = number of groups a priori
-#nstart =  random set to chose, here we try 30 times the procedure and keep with the best value
-incakmeans <- kmeans(inca.cr , centers = 2, nstart =30)
+# Retrieve dataset from list
+clust.data <- res.pca.hcpc$data.clust
 
-# display the numerical results
-print(incakmeans)
 
-#classe pour chaque individu
-incakmeans$cluster 
+# Describing our two cluster
+clust.data %>%
+  select(education, clust) %>%
+  tbl_summary(by= clust, missing = "no") %>%
+  italicize_levels()  %>% 
+  add_p() %>%
+  modify_caption("Descriptive statistics of participants by group")
 
-#iTotal within-cluster sum of squares (inertia)
-incakmeans$tot.withinss
+class1 = clust.data %>% filter(clust==1)
+class2 = clust.data %>% filter(clust==2)
 
-#he between-cluster sum of squares (inertia)
-incakmeans$betweenss
+summary(class1)
+summary(class2)
 
-#attach the results of the selected cluster to each individual of the initial database 
-inca.kmeans.data <- cbind.data.frame(inca2, incakmeans$cluster)
-#choose the best number of cluster (factoextra) with different methods
-#method = the method to be used for estimating the optimal number of clusters. 
-#Possible values for method are "silhouette" (for average silhouette width), "wss" (for total within sum of square) and "gap_stat" (for gap statistics).
-fviz_nbclust(inca.cr, kmeans, method = "gap_stat")
 
-fviz_nbclust(inca.cr, kmeans, method = "wss") +
-  geom_vline(xintercept = 2, linetype = 2)
-
-fviz_nbclust(inca.cr, FUN= hcut, method = "silhouette") +
-  geom_vline(xintercept = 2, linetype = 2)
-
-# this is only for 2 clusters, you gotta do it with all the interesting clusters to look at 
-#print the result of kmeans of the PCA graph using factoextra
-fviz_cluster(incakmeans, data = inca.clus,
-             ellipse.type = "convex",
-             palette = "Set2",
-             ggtheme = theme_minimal())
-
-#logistic regression 
-reg <- glm(class.inca.cah~education, data= inca2.cah.data, family="binomial")
+# Logistic regression 
+reg <- glm(clust~education, data= clust.data, family="binomial")
 logistic.display(reg)
