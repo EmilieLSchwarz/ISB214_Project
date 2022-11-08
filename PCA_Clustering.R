@@ -97,7 +97,9 @@ quantvars <- inca2[, 9:50]
 summary(inca2[9:50])
 hists <- apply(inca2[, 9:50], 2, function(x) {hist(x)}) # Doesn't label histograms
 
-#### DROP OUTLIER INDIVIDUAL - condiment_sauce > 70 
+#### DROP OUTLIER INDIVIDUALS - condiment_sauce and oil 
+inca2 <- inca2 %>% filter(condiment_sauce<50)
+inca2 <- inca2 %>% filter(oil<40)
 
 #####################################################################################################################
 # Table 1: Descriptive table 
@@ -135,7 +137,15 @@ res.pca$eig
 
 
 # Plot of individuals
+# Dimension 1 and 2
 plot.PCA(res.pca, axes=c(1, 2), choix="ind", 
+         habillage="none", col.ind="black", col.ind.sup="blue", 
+         col.quali="magenta", label=c("ind", "ind.sup", "quali"), invisible = c("ind"), # Plots the categories on the dimensions with individuals as invisible
+         new.plot=TRUE
+)
+
+# Dimension 2 and 3
+plot.PCA(res.pca, axes=c(2, 3), choix="ind", 
          habillage="none", col.ind="black", col.ind.sup="blue", 
          col.quali="magenta", label=c("ind", "ind.sup", "quali"), invisible = c("ind"), # Plots the categories on the dimensions with individuals as invisible
          new.plot=TRUE
