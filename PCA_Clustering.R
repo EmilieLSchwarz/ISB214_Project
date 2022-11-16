@@ -58,20 +58,6 @@ inca2 <- inca2 %>% rename(bread = food_gp_1s,
                           condiment_sauce= food_gp_43s
 )
 
-# Give the variables labels 
-inca2 <- inca2 %>% apply_labels(income= "Income Category", 
-                                diet = "Following restrictive diet", 
-                                disease= "Chronic disease status", 
-                                season= "Season", 
-                                smoking_status= "Smoking status", 
-                                age_categories= "Age categories", 
-                                income = "Income category", 
-                                ipaqnx = "Exercise", 
-                                bmiclass= "BMI category", 
-                                education= "Education level", 
-                                supplements = "Dietary supplement intake"
-)
-
 
 ##################################
 #### Format and Describe Data ####
@@ -101,13 +87,34 @@ hists <- apply(inca2[, 9:50], 2, function(x) {hist(x)}) # Doesn't label histogra
 inca2 <- inca2 %>% filter(condiment_sauce<50)
 inca2 <- inca2 %>% filter(oil<40)
 
+# Give the variables labels 
+inca2 <- inca2 %>% apply_labels(income= "Income Category", 
+                                diet = "Following restrictive diet", 
+                                disease= "Chronic disease status", 
+                                season= "Season", 
+                                smoking_status= "Smoking status", 
+                                age_categories= "Age categories", 
+                                income = "Income category", 
+                                ipaqnx = "Exercise", 
+                                bmiclass= "BMI category", 
+                                education= "Education level", 
+                                supplements = "Dietary supplement intake"
+)
+
+
 #####################################################################################################################
 # Table 1: Descriptive table 
+inca2 %>%
+  select(diet, disease, income, ipaqnx, education) %>%
+  tbl_summary(missing = "no")%>%
+  italicize_levels()  %>% 
+  modify_caption("Descriptive statistics of study participants")
+
 inca2 %>%
   select(diet, disease, age_categories, income, ipaqnx, education) %>%
   tbl_summary(by= education, missing = "no")%>%
   italicize_levels()  %>% 
-  modify_caption("Descriptive statistics of participants")
+  modify_caption("Descriptive statistics of study participants by education level")
 #####################################################################################################################
 
 
@@ -122,7 +129,27 @@ res.pca <- PCA(inca2,
                  graph = F )
 summary(res.pca, nbelements = Inf)
 
-# Scree plot
+# Coordinates of variables 
+res.pca$var$coord
+res.pca$var$contrib
+res.pca$eig
+
+# Scree plot two ways 
+
+# 1
+fviz_eig(res.pca, addlabels = TRUE, ncp = 40)
+
+# 2
+eigenvalues <- res.pca$eig
+barplot(eigenvalues[, 2], names.arg=1:nrow(eigenvalues), 
+        main = "Variances",
+        xlab = "Principal Components",
+        ylab = "Percentage of variances",
+        col ="steelblue")
+# Add connected line segments to the plot
+lines(x = 1:nrow(eigenvalues), eigenvalues[, 2], 
+      type="b", pch=19, col = "red")
+
 fviz_eig(res.pca, addlabels = TRUE, ncp = 40)
 
 # Number of dimensions to interpret
@@ -205,6 +232,7 @@ res.pca <- PCA(inca2,
 
 # Perform a HAC with the function HCPC On PCA results
 res.pca.hcpc<-HCPC(res.pca ,nb.clust=-1,consol=T,min=2,max=10,graph=T) # 2 clusters
+res.pca.hcpc<-HCPC(res.pca ,nb.clust=2,consol=T,min=2,max=10,graph=T) # 2 clusters
 
 # Print the numerical results to describe the clusters by the variables
 # columns of interest in the numerical outputs: "Mean in category", "Overall Mean","p.value"
