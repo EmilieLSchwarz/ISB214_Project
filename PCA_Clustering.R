@@ -87,9 +87,19 @@ hists <- apply(inca2[, 9:50], 2, function(x) {hist(x)}) # Doesn't label histogra
 inca2 <- inca2 %>% filter(condiment_sauce<50)
 inca2 <- inca2 %>% filter(oil<40)
 
+# Re-level variable levels
+
+inca2$education = factor(inca2$education, levels= c(1,2,3), labels = c("Primary", "Secondary", "University"))
+inca2$diet = factor(inca2$diet, levels= c(0,1), labels = c("Not following restrictive diet ", "Following restrictive diet"))
+inca2$disease = factor(inca2$disease, levels= c(0,1), labels = c("No chronic disease", "Chronic disease"))
+inca2$income = factor(inca2$income, levels= c(1,2,3,4), labels = c("900€", "990-1599€", "1600-2499€", ">2500€"))
+inca2$ipaqnx = factor(inca2$ipaqnx, levels= c(1,2), labels = c("Normal", "Sedentary"))
+inca2$age_categories = factor(inca2$age_categories, levels= c(1,2,3), labels = c("18-34", "35-54", "55-79"))
+
 # Give the variables labels 
+
 inca2 <- inca2 %>% apply_labels(income= "Income Category", 
-                                diet = "Following restrictive diet", 
+                                diet = "Diet", 
                                 disease= "Chronic disease status", 
                                 season= "Season", 
                                 smoking_status= "Smoking status", 
@@ -106,7 +116,7 @@ inca2 <- inca2 %>% apply_labels(income= "Income Category",
 # Table 1: Descriptive table 
 inca2 %>%
   select(diet, disease, income, ipaqnx, education) %>%
-  tbl_summary(missing = "no")%>%
+  tbl_summary()%>%
   italicize_levels()  %>% 
   modify_caption("Descriptive statistics of study participants")
 
@@ -164,20 +174,22 @@ res.pca$eig
 
 
 # Plot of individuals
+
 # Dimension 1 and 2
-plot.PCA(res.pca, axes=c(1, 2), choix="ind", 
+c1= plot.PCA(res.pca, axes=c(1, 2), choix="ind", 
          habillage="none", col.ind="black", col.ind.sup="blue", 
-         col.quali="magenta", label=c("ind", "ind.sup", "quali"), invisible = c("ind"), # Plots the categories on the dimensions with individuals as invisible
+         col.quali="blue", label=c("ind", "ind.sup", "quali"), invisible = c("ind"), # Plots the categories on the dimensions with individuals as invisible
          new.plot=TRUE
 )
 
 # Dimension 2 and 3
-plot.PCA(res.pca, axes=c(2, 3), choix="ind", 
+c2 = plot.PCA(res.pca, axes=c(2, 3), choix="ind", 
          habillage="none", col.ind="black", col.ind.sup="blue", 
-         col.quali="magenta", label=c("ind", "ind.sup", "quali"), invisible = c("ind"), # Plots the categories on the dimensions with individuals as invisible
+         col.quali="blue", label=c("ind", "ind.sup", "quali"), invisible = c("ind"), # Plots the categories on the dimensions with individuals as invisible
          new.plot=TRUE
 )
 
+ggarrange(c1,c2)
 # Plot of individuals by educational attainment group
 fviz_pca_ind(res.pca,
              geom.ind = "point", # Point not number of individuals 
@@ -273,7 +285,7 @@ clust.data %>%
   tbl_summary(by= clust, missing = "no") %>%
   italicize_levels()  %>% 
   add_p() %>%
-  modify_caption("Descriptive statistics of participants by group"
+  modify_caption("Education of participants by cluster"
 )
 
 class1 = clust.data %>% filter(clust==1)
@@ -284,5 +296,5 @@ summary(class2)
 
 
 # Logistic regression 
-reg <- glm(clust~education, data= clust.data, family="binomial")
+reg <- glm(clust~education+diet+disease+income+age_categories, data= clust.data, family="binomial")
 logistic.display(reg)
